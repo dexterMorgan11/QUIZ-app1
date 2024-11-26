@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .quiz-container {
+            margin-top: 20px;
+        }
+        .question {
+            margin-bottom: 20px;
+        }
+        .result {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quiz App</h1>
+    <input type="file" id="csvFileInput" accept=".csv">
+    <button onclick="loadQuiz()">Load Quiz</button>
+    <div class="quiz-container" id="quizContainer"></div>
+    <div class="result" id="result"></div>
+
+    <script src="quiz.js"></script>
+</body>
+</html>
