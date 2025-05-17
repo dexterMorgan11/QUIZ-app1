@@ -368,9 +368,9 @@
             <label for="csv-file-input" class="file-upload-label" role="button" tabindex="0" aria-controls="csv-file-input">
                 <span aria-hidden="true">📤</span> Upload CSV File
             </label>
-            <input type="file" id="csv-file-input" accept=".csv,text/csv">
-            <div id="file-name-display" aria-live="polite">Or paste CSV data below:</div>
-            <textarea id="csv-input" rows="5" placeholder="Question,CorrectAnswer,WrongOption1,..."></textarea>
+            <input type="file" id="csv-file-input" accept=".csv,.txt,text/csv,text/plain">
+            <div id="file-name-display" aria-live="polite">Or paste CSV data below (pipe-delimited):</div>
+            <textarea id="csv-input" rows="5" placeholder="Question|CorrectAnswer|WrongOption1|WrongOption2..."></textarea>
             
             <div class="input-options-grid">
                 <div>
@@ -580,7 +580,7 @@
         function showSection(sectionToShow) { [inputArea, quizArea, resultsArea, reviewArea].forEach(s => s.style.display = 'none'); sectionToShow.style.display = 'block'; }
         function handleBeforeUnload(e) { if (quizActive) { e.preventDefault(); e.returnValue = 'Quiz in progress! Are you sure you want to leave?'; } }
 
-        // --- CSV Handling (Mostly same) ---
+        // --- CSV Handling (Modified for pipe delimiter) ---
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (file) {
@@ -596,7 +596,7 @@
                     showLoading(false);
                 }
             } else {
-                fileNameDisplay.textContent = "Or paste CSV data below:";
+                fileNameDisplay.textContent = "Or paste CSV data below (pipe-delimited):";
             }
         }
         function readFileAsync(file) {
@@ -607,13 +607,13 @@
                 reader.readAsText(file);
             });
         }
-        function parseCSV(csvText) { /* (Same as before) */
+        function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
             const questions = [];
             lines.forEach((line, idx) => {
                 if (line.trim() === "") return;
-                const parts = line.split(','); 
-                if (parts.length >= 3) {
+                const parts = line.split('|'); // MODIFIED: Changed delimiter from comma to pipe
+                if (parts.length >= 3) { // Question | CorrectAnswer | WrongOption1 (at least)
                     const question = parts[0]?.trim();
                     const correctAnswer = parts[1]?.trim();
                     const wrongOptions = parts.slice(2).map(opt => opt?.trim()).filter(opt => opt && opt.length > 0);
@@ -637,7 +637,7 @@
         async function loadQuiz() {
             const csvText = csvInput.value;
             if (!csvText.trim()) {
-                showModal("Please provide CSV data or upload a file.");
+                showModal("Please provide quiz data (pipe-delimited) or upload a file.");
                 return;
             }
             showLoading(true);
@@ -647,10 +647,10 @@
             showLoading(false);
 
             if (parsedQuestions.length === 0) {
-                showModal("No valid questions found. Check CSV format (Question,CorrectAnswer,WrongOption1,...).");
+                // MODIFIED: Updated error message for pipe-delimited format
+                showModal("No valid questions found. Check format (Question|CorrectAnswer|WrongOption1|...).");
                 return;
             }
-            // ... (rest of loadQuiz logic: setting quizData, userAnswers, etc. is the same) ...
             originalQuizDataOrder = [...parsedQuestions];
             questionsRandomized = randomizeCheckbox.checked;
             quizData = questionsRandomized ? shuffleArray([...parsedQuestions]) : [...parsedQuestions];
@@ -679,7 +679,6 @@
 
         // --- Question Display & Interaction (Mostly same, check ARIA updates) ---
         function displayQuestion(index) {
-            // ... (q, questionTextElem, counterDisplay logic) ...
             if (index < 0 || index >= quizData.length) return;
             const q = quizData[index];
             questionTextElem.textContent = q.question;
@@ -719,7 +718,6 @@
             nextBtn.disabled = !questionAnswered;
         }
         function selectOption(selectedLiElement, selectedOptionText, correctAnswerText) {
-            // ... (userAnswers update, isCorrect logic) ...
             if (userAnswers[currentQuestionIndex] !== null) return; 
             userAnswers[currentQuestionIndex] = selectedOptionText;
             const isCorrect = selectedOptionText === correctAnswerText;
@@ -733,7 +731,6 @@
                 li.setAttribute('tabindex', '-1'); // No longer focusable
                 if (li === selectedLiElement) li.setAttribute('aria-selected', 'true');
             });
-            // ... (feedbackMessageElem update, nextBtn enable) ...
             if (isCorrect) {
                 feedbackMessageElem.textContent = "✨ Correct! Stellar work!";
                 feedbackMessageElem.className = 'feedback-correct';
@@ -744,7 +741,7 @@
             nextBtn.disabled = false;
             updateNavigationButtons(); 
         }
-        function applyAnswerFeedback(liElement, optionText, correctAnswerText, userAnswerText) { /* (Same as before) */ 
+        function applyAnswerFeedback(liElement, optionText, correctAnswerText, userAnswerText) { 
             const iconSpan = document.createElement('span');
             iconSpan.className = 'feedback-icon';
             iconSpan.setAttribute('aria-hidden', 'true');
@@ -755,7 +752,7 @@
             }
             if (iconSpan.textContent) liElement.appendChild(iconSpan);
         }
-        function updateNavigationButtons() { /* (Same) */ 
+        function updateNavigationButtons() { 
             prevBtn.disabled = currentQuestionIndex === 0;
             if (currentQuestionIndex === quizData.length - 1) {
                 nextBtn.style.display = 'none'; submitBtn.style.display = 'inline-block';
@@ -764,23 +761,23 @@
                 nextBtn.style.display = 'inline-block'; submitBtn.style.display = 'none';
             }
         }
-        function updateProgressBar() { /* (Same, plus ARIA update) */
+        function updateProgressBar() { 
             const progress = quizData.length > 0 ? ((currentQuestionIndex + 1) / quizData.length) * 100 : 0;
             progressBar.style.width = `${progress}%`;
             progressBarContainer.setAttribute('aria-valuenow', Math.round(progress));
         }
 
         // --- Navigation & Timer (Mostly same, toggleTimerBtn ARIA) ---
-        function nextQuestion() { /* (Same) */ if (currentQuestionIndex < quizData.length - 1) { currentQuestionIndex++; displayQuestion(currentQuestionIndex); } else if (currentQuestionIndex === quizData.length - 1 && userAnswers[currentQuestionIndex] !== null) { showResults(false); } }
-        function prevQuestion() { /* (Same) */ if (currentQuestionIndex > 0) { currentQuestionIndex--; displayQuestion(currentQuestionIndex); } }
+        function nextQuestion() { if (currentQuestionIndex < quizData.length - 1) { currentQuestionIndex++; displayQuestion(currentQuestionIndex); } else if (currentQuestionIndex === quizData.length - 1 && userAnswers[currentQuestionIndex] !== null) { showResults(false); } }
+        function prevQuestion() { if (currentQuestionIndex > 0) { currentQuestionIndex--; displayQuestion(currentQuestionIndex); } }
         function toggleTimerDisplay() {
             timerVisible = !timerVisible;
             timerDisplay.style.opacity = timerVisible ? '1' : '0';
             toggleTimerBtn.textContent = timerVisible ? '⏱️' : '👁️';
             toggleTimerBtn.setAttribute('aria-label', timerVisible ? "Hide Timer" : "Show Timer");
-            timerDisplay.setAttribute('aria-live', timerVisible ? 'off' : 'polite'); // Announce if shown after hidden
+            timerDisplay.setAttribute('aria-live', timerVisible ? 'off' : 'polite'); 
         }
-        function startTimer() { /* (Same) */ 
+        function startTimer() { 
             const durationMinutes = parseInt(quizTimeInput.value) || 10;
             timeLeft = durationMinutes * 60; clearInterval(timerInterval); updateTimerDisplay(); 
             timerInterval = setInterval(() => {
@@ -791,13 +788,13 @@
                 }
             }, 1000);
         }
-        function updateTimerDisplay() { /* (Same) */ 
+        function updateTimerDisplay() { 
             const minutes = Math.floor(timeLeft / 60); const seconds = timeLeft % 60;
             if (timerVisible) { timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
         }
 
         // --- Results, Review Mode & High Score (Mostly same) ---
-        function showResults(timeUp = false) { /* (Same logic as before for calculating and displaying results) */ 
+        function showResults(timeUp = false) { 
             clearInterval(timerInterval); quizActive = false; document.title = `${APP_TITLE} - Debrief`; showSection(resultsArea);
             let score = 0; const finalAnswersMap = new Map();
             quizData.forEach((q, i) => { finalAnswersMap.set(q.originalIndex, { userAnswer: userAnswers[i], questionObj: q }); });
@@ -817,8 +814,8 @@
             resultsSummaryElem.innerHTML = `${timeMsg}<p class="final-score">Score: ${score}/${originalQuizDataOrder.length} (${percentage.toFixed(1)}%)</p>${resultsHtml}`;
             updateHighScore(percentage);
         }
-        function startReviewMode() { /* (Same) */ currentReviewIndex = 0; showSection(reviewArea); document.title = `${APP_TITLE} - Review Log`; displayReviewQuestion(currentReviewIndex); }
-        function displayReviewQuestion(index) { /* (Same display logic, check ARIA for options if needed) */ 
+        function startReviewMode() { currentReviewIndex = 0; showSection(reviewArea); document.title = `${APP_TITLE} - Review Log`; displayReviewQuestion(currentReviewIndex); }
+        function displayReviewQuestion(index) { 
             if (index < 0 || index >= originalQuizDataOrder.length) return;
             const qOriginal = originalQuizDataOrder[index];
             let userAnswerForThisQ = "Not Answered";
@@ -830,21 +827,21 @@
             reviewOptionsListElem.classList.toggle('multiple-cols', qOriginal.options.length >= 4);
             qOriginal.options.forEach((optionText, optIdx) => {
                 const li = document.createElement('li');
-                li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false'); // Indicate selection state
+                li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false'); 
                 const prefix = document.createElement('span'); prefix.className = 'option-prefix'; prefix.textContent = `${optIdx + 1}.`;
                 li.appendChild(prefix); li.append(optionText);
                 li.classList.add('disabled');
                 applyAnswerFeedback(li, optionText, qOriginal.correctAnswer, userAnswerForThisQ);
-                if(optionText === userAnswerForThisQ) li.setAttribute('aria-selected', 'true'); // Mark user's answer
+                if(optionText === userAnswerForThisQ) li.setAttribute('aria-selected', 'true'); 
                 reviewOptionsListElem.appendChild(li);
             });
             reviewPrevBtn.disabled = index === 0;
             reviewNextBtn.disabled = index === originalQuizDataOrder.length - 1;
         }
-        function nextReviewQuestion() { /* (Same) */ if (currentReviewIndex < originalQuizDataOrder.length - 1) { currentReviewIndex++; displayReviewQuestion(currentReviewIndex); } }
-        function prevReviewQuestion() { /* (Same) */ if (currentReviewIndex > 0) { currentReviewIndex--; displayReviewQuestion(currentReviewIndex); } }
-        function loadHighScore() { /* (Same) */ const hs = localStorage.getItem('quizitHighScore'); highScoreValueElem.textContent = hs ? `${parseFloat(hs).toFixed(1)}%` : "N/A"; }
-        function updateHighScore(currentPercentage) { /* (Same) */ const hs = parseFloat(localStorage.getItem('quizitHighScore')) || 0; if (currentPercentage > hs) { localStorage.setItem('quizitHighScore', currentPercentage.toFixed(1)); loadHighScore(); } }
+        function nextReviewQuestion() { if (currentReviewIndex < originalQuizDataOrder.length - 1) { currentReviewIndex++; displayReviewQuestion(currentReviewIndex); } }
+        function prevReviewQuestion() { if (currentReviewIndex > 0) { currentReviewIndex--; displayReviewQuestion(currentReviewIndex); } }
+        function loadHighScore() { const hs = localStorage.getItem('quizitHighScore'); highScoreValueElem.textContent = hs ? `${parseFloat(hs).toFixed(1)}%` : "N/A"; }
+        function updateHighScore(currentPercentage) { const hs = parseFloat(localStorage.getItem('quizitHighScore')) || 0; if (currentPercentage > hs) { localStorage.setItem('quizitHighScore', currentPercentage.toFixed(1)); loadHighScore(); } }
 
         // --- Restart (Modified to use custom confirm) ---
         async function confirmAndRestartQuiz() {
@@ -854,26 +851,24 @@
             }
             restartQuiz();
         }
-        function restartQuiz() { /* (Same as before) */
+        function restartQuiz() {
             quizActive = false; clearInterval(timerInterval); showSection(inputArea); document.title = `${APP_TITLE} - Prepare Mission`;
-            csvInput.value = ''; csvFileInput.value = ''; fileNameDisplay.textContent = "Or paste CSV data below:";
+            csvInput.value = ''; csvFileInput.value = ''; fileNameDisplay.textContent = "Or paste CSV data below (pipe-delimited):";
             quizData = []; originalQuizDataOrder = []; currentQuestionIndex = 0; userAnswers = []; loadHighScore(); 
         }
 
         // --- Keyboard Navigation (Focus management with modal) ---
         function handleKeyboardInput(e) {
-            // If modal is active, only allow Esc to close it (if it's an alert type or no cancel action)
             if (customModal.classList.contains('active')) {
                 if (e.key === 'Escape') {
-                    if (modalCancelBtn.style.display === 'none' || modalConfirmBtn.textContent === 'OK') { // It's an alert or only has OK
-                        handleModalAction(false); // Treat Escape as "cancel" or "dismiss"
+                    if (modalCancelBtn.style.display === 'none' || modalConfirmBtn.textContent === 'OK') { 
+                        handleModalAction(false); 
                     }
-                } else if (e.key === 'Enter' && modalConfirmBtn.offsetParent !== null) { // If confirm btn is visible
+                } else if (e.key === 'Enter' && modalConfirmBtn.offsetParent !== null) { 
                      modalConfirmBtn.click();
                 }
-                return; // Don't process other keyboard inputs when modal is open
+                return; 
             }
-            // ... (rest of keyboard navigation logic for quiz/review from previous version) ...
             if (!quizActive || (quizArea.style.display === 'none' && reviewArea.style.display === 'none')) return;
             const isQuizVisible = quizArea.style.display !== 'none';
             const isReviewVisible = reviewArea.style.display !== 'none';
